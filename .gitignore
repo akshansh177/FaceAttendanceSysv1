@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnp.*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+**/.venv/
+.env
+.env.local
+**/.env
+apps/backend/.env
+
+# Build
+.next/
+dist/
+build/
+*.egg-info/
+
+# Uploads & data
+uploads/
+backups/
+*.db
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+
+# Models (large)
+.insightface/
+models/
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker/volumes/

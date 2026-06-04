@@ -1,0 +1,10 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.17
+numpy>=1.26.0,<3
+opencv-python-headless==4.10.0.84
+insightface==0.7.3
+onnxruntime==1.20.1
+deepface==0.0.93
+prometheus-client==0.21.1
+pydantic-settings==2.6.1

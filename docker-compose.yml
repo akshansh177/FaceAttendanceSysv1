@@ -1,0 +1,133 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: attendance
+      MYSQL_USER: attendance
+      MYSQL_PASSWORD: attendance
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uattendance", "-pattendance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    profiles: [dev, prod]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles: [dev, prod]
+
+  backend-worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql+aiomysql://attendance:attendance@mysql:3306/attendance
+      DATABASE_URL_SYNC: mysql+pymysql://attendance:attendance@mysql:3306/attendance
+      REDIS_URL: redis://redis:6379/0
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/backend:/app
+      - uploads_data:/app/uploads
+    profiles: [prod]
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql+aiomysql://attendance:attendance@mysql:3306/attendance
+      DATABASE_URL_SYNC: mysql+pymysql://attendance:attendance@mysql:3306/attendance
+      REDIS_URL: redis://redis:6379/0
+      RECOGNITION_SERVICE_URL: http://recognition:6003
+    ports:
+      - "6002:6002"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/backend:/app
+      - uploads_data:/app/uploads
+    profiles: [dev, prod]
+
+  recognition:
+    build:
+      context: ./apps/recognition-service
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "6003:6003"
+    volumes:
+      - ./apps/recognition-service:/app
+    profiles: [dev, prod]
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:6002
+      PORT: "6001"
+    ports:
+      - "6001:6001"
+    depends_on:
+      - backend
+    profiles: [prod]
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
+    profiles: [prod]
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    profiles: [prod]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    profiles: [prod]
+
+volumes:
+  mysql_data:
+  uploads_data:

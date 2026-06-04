@@ -1,0 +1,42 @@
+{
+  "title": "Face Attendance System",
+  "uid": "face-attendance",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API request duration (p95)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"backend\"}[5m])) by (le))",
+          "legendFormat": "backend p95"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Recognition service health",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=\"recognition\"}",
+          "legendFormat": "recognition up"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Kiosk 5xx rate (5m)",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"backend\",handler=~\"/api/kiosk.*\",status=~\"5..\"}[5m]))",
+          "legendFormat": "kiosk 5xx/s"
+        }
+      ]
+    }
+  ]
+}
