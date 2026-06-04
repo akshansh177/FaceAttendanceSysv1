@@ -19,6 +19,8 @@ docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed
 ```
 
+Recognition Docker image uses a multi-stage build with `g++` for InsightFace. **DeepFace is not installed by default** (avoids a 600MB+ TensorFlow download). Kiosk and enrollment work via InsightFace. For portal gray-zone DeepFace verify, set recognition `dockerfile: Dockerfile.deepface` in `docker-compose.yml` and rebuild.
+
 Optional Compose MySQL only: `docker compose --profile mysql-docker up -d mysql`
 
 Services:

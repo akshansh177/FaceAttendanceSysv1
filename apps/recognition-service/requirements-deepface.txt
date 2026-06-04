@@ -1,0 +1,2 @@
+# Optional — large (~600MB+ with TensorFlow). Install only if DEEPFACE_ENABLED=true
+deepface==0.0.93

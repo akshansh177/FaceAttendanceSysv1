@@ -89,8 +89,10 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:6002}
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:6002
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:6002}
       PORT: "6001"
     ports:
       - "6001:6001"

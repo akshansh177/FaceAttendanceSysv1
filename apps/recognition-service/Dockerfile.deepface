@@ -1,8 +1,8 @@
+# Extended image with DeepFace gray-zone verification (much larger build)
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# insightface builds Cython extensions; keep build tools in builder only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-deepface.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-deepface.txt
 
 FROM python:3.12-slim
 
@@ -28,8 +28,6 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
-
-RUN mkdir -p /root/.insightface/models
 
 EXPOSE 6003
 
