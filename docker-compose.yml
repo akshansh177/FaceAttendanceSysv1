@@ -1,22 +1,25 @@
+# Use your own MySQL server (no mysql container in dev/prod).
+# Optional bundled MySQL: docker compose --profile mysql-docker up -d mysql
+
 services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: attendance
-      MYSQL_USER: attendance
-      MYSQL_PASSWORD: attendance
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-attendanceacspl}
+      MYSQL_USER: ${MYSQL_USER:-acspluserattendance}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uattendance", "-pattendance"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
       interval: 5s
       timeout: 5s
       retries: 10
-    profiles: [dev, prod]
+    profiles: [mysql-docker]
 
   redis:
     image: redis:7-alpine
@@ -35,13 +38,13 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: mysql+aiomysql://attendance:attendance@mysql:3306/attendance
-      DATABASE_URL_SYNC: mysql+pymysql://attendance:attendance@mysql:3306/attendance
+      DATABASE_URL: ${DATABASE_URL_DOCKER}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER}
       REDIS_URL: redis://redis:6379/0
     command: ["python", "-m", "app.worker"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -55,15 +58,15 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: mysql+aiomysql://attendance:attendance@mysql:3306/attendance
-      DATABASE_URL_SYNC: mysql+pymysql://attendance:attendance@mysql:3306/attendance
+      DATABASE_URL: ${DATABASE_URL_DOCKER}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER}
       REDIS_URL: redis://redis:6379/0
       RECOGNITION_SERVICE_URL: http://recognition:6003
     ports:
       - "6002:6002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:

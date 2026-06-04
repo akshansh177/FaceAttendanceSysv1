@@ -15,9 +15,10 @@ Requires **Python 3.9+** locally (3.12 in Docker). Run commands from the repo ro
 
 ```bash
 cp .env.example .env
-docker compose --profile dev up -d mysql redis
+# Edit DATABASE_URL* in .env and apps/backend/.env for your MySQL server (no mysql container required)
+docker compose --profile dev up -d redis
 
-# Backend (run from apps/backend)
+# Backend (run from apps/backend) — uses localhost MySQL via apps/backend/.env
 cd apps/backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -53,9 +54,13 @@ See [docs/upgrade-v3-kiosk.md](docs/upgrade-v3-kiosk.md), [docs/upgrade.md](docs
 
 ## Production
 
+Uses **your existing MySQL** (not a Compose mysql service). Set `DATABASE_URL_DOCKER` in `.env` to reach the host DB (`host.docker.internal` on the same machine, or your server IP).
+
 ```bash
 docker compose --profile prod up -d
 ```
+
+Optional bundled MySQL only: `docker compose --profile mysql-docker up -d mysql`
 
 See [docs/deploy.md](docs/deploy.md) for TLS, backups, and monitoring.
 

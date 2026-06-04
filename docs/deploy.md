@@ -8,12 +8,18 @@
 
 ## Deploy
 
+**MySQL:** Use an existing MySQL 8 server (recommended). The Compose file does **not** start MySQL in `dev`/`prod` profiles.
+
 ```bash
 cp .env.example .env
-# Edit secrets: JWT_SECRET, JWT_REFRESH_SECRET, EMBEDDING_ENCRYPTION_KEY
+# Edit: JWT_*, EMBEDDING_ENCRYPTION_KEY, DATABASE_URL_DOCKER (host = host.docker.internal or server IP)
 
 docker compose --profile prod up -d --build
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed
 ```
+
+Optional Compose MySQL only: `docker compose --profile mysql-docker up -d mysql`
 
 Services:
 
@@ -34,20 +40,40 @@ Services:
 
 ## Database
 
-V2 uses **MySQL 8** (`mysql` service in Docker Compose). Connection strings:
+V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`** and **`apps/backend/.env`**:
 
-- Async API: `mysql+aiomysql://user:pass@mysql:3306/attendance`
-- Alembic: `mysql+pymysql://...`
+| Variable | Example |
+|----------|---------|
+| `MYSQL_DATABASE` | `attendanceacspl` |
+| `MYSQL_USER` | `acspluserattendance` |
+| `MYSQL_PASSWORD` | plain password (for Docker MySQL init) |
+| `DATABASE_URL` | `mysql+aiomysql://USER:URL_ENCODED_PASS@localhost:3306/DB` |
+| `DATABASE_URL_SYNC` | `mysql+pymysql://USER:URL_ENCODED_PASS@localhost:3306/DB` |
+
+**Local API** (`uvicorn` from `apps/backend`): edit **`apps/backend/.env`** with the same `DATABASE_URL` lines (host `localhost`).
+
+**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in `.env` with host `host.docker.internal` (same machine) or your MySQL server IP. Backend services include `extra_hosts: host.docker.internal:host-gateway` for Linux.
+
+**No MySQL container:** `docker compose` `dev`/`prod` profiles only start redis, backend, recognition, etc.
+
+URL-encode special characters in passwords inside connection URLs (`#` → `%23`, `@` → `%40`).
+
+Connection strings:
+
+- Async API: `mysql+aiomysql://user:pass@mysql:3306/dbname`
+- Alembic: `mysql+pymysql://...` (uses `DATABASE_URL_SYNC` from env)
 
 For high load, add a MySQL read replica and route report queries to it via a separate `DATABASE_URL_READ` (application support as needed).
 
 ## Backups
 
-Daily database backup (mysqldump):
+Daily database backup (mysqldump on host, not via mysql container):
 
 ```bash
-./docker/scripts/backup-db.sh
+mysqldump -h localhost -u acspluserattendance -p attendanceacspl > backups/attendanceacspl_$(date +%Y%m%d).sql
 ```
+
+Or use `./docker/scripts/backup-db.sh` only if you run the optional `mysql-docker` profile.
 
 Retention: 90 days (configure in script). Weekly full volume snapshot recommended.
 
