@@ -21,6 +21,17 @@ docker compose exec backend python -m app.seed
 
 Recognition Docker image uses a multi-stage build with `g++` for InsightFace. **DeepFace is not installed by default** (avoids a 600MB+ TensorFlow download). Kiosk and enrollment work via InsightFace. For portal gray-zone DeepFace verify, set recognition `dockerfile: Dockerfile.deepface` in `docker-compose.yml` and rebuild.
 
+If `docker compose build` still shows `Dockerfile: 369B`, `deepface` on line 8, or `g++ failed`, the server has **old files** (git pull blocked). From repo root:
+
+```bash
+git stash push -m local -u docker-compose.yml   # if pull was rejected
+git pull origin main
+chmod +x scripts/server-fix-docker-build.sh
+./scripts/server-fix-docker-build.sh
+```
+
+Or download fixed files only: `curl` lines in `scripts/server-fix-docker-build.sh`, then `docker compose build --no-cache recognition`.
+
 Optional Compose MySQL only: `docker compose --profile mysql-docker up -d mysql`
 
 Services:
