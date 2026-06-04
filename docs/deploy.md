@@ -65,7 +65,9 @@ V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`*
 
 **Local API** (`uvicorn` from `apps/backend`): edit **`apps/backend/.env`** with the same `DATABASE_URL` lines (host `localhost`).
 
-**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in `.env` with host `host.docker.internal` (same machine) or your MySQL server IP. Backend services include `extra_hosts: host.docker.internal:host-gateway` for Linux.
+**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`** with host `host.docker.internal` (same machine) or your MySQL server IP. Backend services include `extra_hosts: host.docker.internal:host-gateway` for Linux.
+
+If backend logs show `Could not parse SQLAlchemy URL from string ''`, root `.env` is missing `DATABASE_URL_DOCKER` (Compose was overriding `DATABASE_URL` with an empty value). Add both `*_DOCKER` lines, then `docker compose --profile prod up -d --force-recreate backend backend-worker`.
 
 **No MySQL container:** `docker compose` `dev`/`prod` profiles only start redis, backend, recognition, etc.
 

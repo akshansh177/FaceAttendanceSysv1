@@ -38,8 +38,8 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL_DOCKER}
-      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-${DATABASE_URL}}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER:-${DATABASE_URL_SYNC}}
       REDIS_URL: redis://redis:6379/0
     command: ["python", "-m", "app.worker"]
     extra_hosts:
@@ -58,8 +58,8 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL_DOCKER}
-      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-${DATABASE_URL}}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC_DOCKER:-${DATABASE_URL_SYNC}}
       REDIS_URL: redis://redis:6379/0
       RECOGNITION_SERVICE_URL: http://recognition:6003
     ports:
