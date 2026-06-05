@@ -86,7 +86,14 @@ cd /path/to/FaceAttendanceSystem
 
 This pulls latest code, rebuilds images, runs migrations, and seeds.
 
-If `git pull` fails with "local changes would be overwritten", run:
+If `git pull` fails or Alembic errors on `%23` in the password, run:
+
+```bash
+chmod +x scripts/server-fix-migrations.sh
+./scripts/server-fix-migrations.sh
+```
+
+Or manually:
 
 ```bash
 git stash
