@@ -108,11 +108,14 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         try:
             n = await rebuild_embedding_index(db, broadcast=False)
-            await warm_policy_cache(db)
-            await db.commit()
             logger.info("Startup: FAISS index loaded (%s vectors)", n)
         except Exception as e:
-            logger.warning("Startup index rebuild failed: %s", e)
+            logger.warning("Startup FAISS index rebuild failed: %r", e)
+        try:
+            await warm_policy_cache(db)
+            await db.commit()
+        except Exception as e:
+            logger.warning("Startup policy cache warm failed (check Redis): %r", e)
 
     scheduler.add_job(nightly_jobs, "cron", hour=23, minute=30)
     scheduler.add_job(summary_interval_jobs, "interval", minutes=5)
