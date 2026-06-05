@@ -11,12 +11,15 @@
 **MySQL:** Use an existing MySQL 8 server (recommended). The Compose file does **not** start MySQL in `dev`/`prod` profiles.
 
 ```bash
-# CloudPanel / MySQL on same host (recommended — avoids host.docker.internal timeout)
+# CloudPanel (host MySQL + host Redis + host Nginx — no docker redis/nginx containers)
 chmod +x scripts/server-setup-env.sh scripts/server-deploy.sh
 ./scripts/server-setup-env.sh --force --cloudpanel
 docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d --build
 docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend alembic upgrade head
 docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend python -m app.seed
+
+# CloudPanel vhost: copy docker/cloudpanel/vhost.conf.example into your site Nginx config
+# NEXT_PUBLIC_API_URL=https://your-domain.com  CORS_ORIGINS=https://your-domain.com
 
 # Or one-shot: ./scripts/server-deploy.sh
 ```
@@ -76,7 +79,13 @@ V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`*
 
 **Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`**.
 
-**CloudPanel (same server as MySQL):** use `docker-compose.cloudpanel.yml` so backend uses **host network** and `localhost:3306`. Run `./scripts/server-setup-env.sh --force --cloudpanel`. Requires host Redis on `127.0.0.1:6379` (CloudPanel default).
+**CloudPanel (same server as MySQL):** use `docker-compose.cloudpanel.yml`:
+
+- **No Docker Redis** — uses CloudPanel/host Redis at `redis://127.0.0.1:6379/0`
+- **No Docker Nginx** — use CloudPanel’s Nginx; see `docker/cloudpanel/vhost.conf.example` (`/` → `127.0.0.1:6001`, `/api/` → `127.0.0.1:6002`)
+- **Backend host network** — MySQL at `localhost:3306` (no `host.docker.internal` timeout)
+
+Run `./scripts/server-setup-env.sh --force --cloudpanel`.
 
 **Other hosts:** use `host.docker.internal` in `*_DOCKER` URLs; MySQL must listen on `0.0.0.0` or the Docker bridge IP, not only `127.0.0.1`.
 

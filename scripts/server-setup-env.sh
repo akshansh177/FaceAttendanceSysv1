@@ -78,6 +78,9 @@ if [[ "$CLOUDPANEL" == true ]]; then
   set_env_var DOCKER_USE_HOST_NETWORK "true" "$ROOT_ENV"
   set_env_var REDIS_URL "redis://127.0.0.1:6379/0" "$ROOT_ENV"
   set_env_var RECOGNITION_SERVICE_URL "http://127.0.0.1:6003" "$ROOT_ENV"
+  echo ""
+  echo "CloudPanel: use host Redis/Nginx — no docker redis or nginx containers."
+  echo "Add vhost from docker/cloudpanel/vhost.conf.example in CloudPanel."
 fi
 
 echo "Updated $ROOT_ENV"
