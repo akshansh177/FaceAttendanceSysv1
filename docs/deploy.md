@@ -58,7 +58,7 @@ Edit `apps/backend/.env` only. Docker reads it directly via `env_file`.
 | `REDIS_URL` | `redis://localhost:6379/0` |
 | `CORS_ORIGINS` | `https://your-domain.com` |
 
-URL-encode special characters in passwords (`#` → `%23`, `@` → `%40`).
+URL-encode special characters in passwords (`#` → `%23`, `@` → `%40`). This is required in `DATABASE_URL` / `DATABASE_URL_SYNC`.
 
 The compose file overrides `REDIS_URL` and `RECOGNITION_SERVICE_URL` to `127.0.0.1` for host-network containers.
 
