@@ -26,6 +26,9 @@ services:
 
   recognition:
     build: ./apps/recognition-service
+    environment:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
     ports:
       - "127.0.0.1:6003:6003"
     restart: unless-stopped

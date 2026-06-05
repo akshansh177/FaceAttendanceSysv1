@@ -6,7 +6,7 @@ import time
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from prometheus_client import Counter, Histogram, make_asgi_app
 
-from app.engine import detect_and_embed_insightface, verify_deepface
+from app.engine import detect_and_embed_insightface, model_status, verify_deepface
 from app.liveness import check_liveness
 
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +44,7 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "recognition"}
+    return {"status": "ok", "service": "recognition", "model": model_status()}
 
 
 @app.post("/detect-embed")

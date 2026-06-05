@@ -8,8 +8,16 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# 320 uses less RAM than 640 — important on small VPS (Contabo, etc.)
+DET_SIZE = (320, 320)
+
 _insightface_app = None
 _deepface_available = True
+
+
+def model_status() -> str:
+    app = get_insightface_app()
+    return "fallback" if app == "fallback" else "insightface"
 
 
 def get_insightface_app():
@@ -19,9 +27,9 @@ def get_insightface_app():
             from insightface.app import FaceAnalysis
 
             app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-            app.prepare(ctx_id=0, det_size=(640, 640))
+            app.prepare(ctx_id=0, det_size=DET_SIZE)
             _insightface_app = app
-            logger.info("InsightFace model loaded")
+            logger.info("InsightFace model loaded (det_size=%s)", DET_SIZE)
         except Exception as e:
             logger.warning("InsightFace unavailable, using fallback: %s", e)
             _insightface_app = "fallback"

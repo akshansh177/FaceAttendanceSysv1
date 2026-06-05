@@ -114,6 +114,23 @@ docker compose restart backend
 
 First startup may take 1–2 minutes while InsightFace downloads `buffalo_l` weights.
 
+**`curl detect-embed` returns `HTTP 000`:** the recognition container likely **crashed** (OOM on small VPS) or the test image is invalid. Check:
+
+```bash
+ls -la /tmp/test.jpg && file /tmp/test.jpg
+docker compose ps recognition
+docker compose logs recognition --tail 30
+free -h
+```
+
+Rebuild recognition after pulling latest (pre-bakes model, lower memory `det_size=320`):
+
+```bash
+docker compose build --no-cache recognition
+docker compose up -d recognition
+curl -s http://127.0.0.1:6003/health   # should show "model":"insightface"
+```
+
 If `git pull` fails or Alembic errors on `%23` in the password, run:
 
 ```bash
