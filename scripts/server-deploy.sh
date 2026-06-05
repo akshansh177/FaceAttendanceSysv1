@@ -11,14 +11,14 @@ git pull origin main
 
 ./scripts/server-setup-env.sh --force --cloudpanel
 
-COMPOSE_FILES=(-f docker-compose.yml -f docker-compose.cloudpanel.yml)
-docker compose "${COMPOSE_FILES[@]}" --profile prod up -d --build --force-recreate
+chmod +x scripts/compose-prod.sh
+./scripts/compose-prod.sh up -d --build --force-recreate
 
 echo "Waiting for backend..."
 sleep 8
-docker compose "${COMPOSE_FILES[@]}" exec backend alembic upgrade head
-docker compose "${COMPOSE_FILES[@]}" exec backend python -m app.seed
+./scripts/compose-prod.sh exec backend alembic upgrade head
+./scripts/compose-prod.sh exec backend python -m app.seed
 
-echo "Done."
-docker compose "${COMPOSE_FILES[@]}" ps
-docker compose "${COMPOSE_FILES[@]}" logs backend --tail 15
+echo "Done. Running containers:"
+./scripts/compose-prod.sh ps
+./scripts/compose-prod.sh logs backend --tail 15

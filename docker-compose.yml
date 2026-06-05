@@ -1,5 +1,8 @@
 # Use your own MySQL server (no mysql container in dev/prod).
-# Optional bundled MySQL: docker compose --profile mysql-docker up -d mysql
+#
+# prod profile (core app only): redis, backend, backend-worker, frontend, recognition
+# CloudPanel: add -f docker-compose.cloudpanel.yml (skips redis/nginx; uses host services)
+# Optional: --profile docker-nginx  |  --profile monitoring  |  --profile mysql-docker
 
 services:
   mysql:
@@ -117,27 +120,27 @@ services:
     depends_on:
       - frontend
       - backend
-    profiles: [prod]
+    profiles: [docker-nginx]
 
   prometheus:
     image: prom/prometheus:latest
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    expose:
-      - "9090"
-    profiles: [prod]
+    ports:
+      - "127.0.0.1:9090:9090"
+    profiles: [monitoring]
 
   grafana:
     image: grafana/grafana:latest
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3001:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
     depends_on:
       - prometheus
-    profiles: [prod]
+    profiles: [monitoring]
 
 volumes:
   mysql_data:

@@ -29,7 +29,8 @@ fi
 echo "==> Rebuild recognition (no cache)..."
 docker compose build --no-cache recognition
 
-echo "==> Rebuild full prod stack..."
-docker compose --profile prod up -d --build
+echo "==> Rebuild CloudPanel prod stack (4 containers, no nginx/grafana/prometheus)..."
+chmod +x scripts/compose-prod.sh
+./scripts/compose-prod.sh up -d --build
 
 echo "Done."

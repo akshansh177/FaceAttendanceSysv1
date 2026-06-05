@@ -89,7 +89,7 @@ grep -E '^JWT_SECRET=|^DATABASE_URL_DOCKER=' "$ROOT_ENV" | head -2
 echo ""
 echo "Next:"
 if [[ "$CLOUDPANEL" == true ]]; then
-  echo "  docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d --force-recreate"
+  echo "  ./scripts/compose-prod.sh up -d --force-recreate"
 else
   echo "  docker compose --profile prod up -d --force-recreate"
 fi

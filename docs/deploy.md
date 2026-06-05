@@ -46,22 +46,24 @@ Or download fixed files only: `curl` lines in `scripts/server-fix-docker-build.s
 
 Optional Compose MySQL only: `docker compose --profile mysql-docker up -d mysql`
 
-Services:
+**Prod profile containers (CloudPanel):** only 4 — `frontend`, `backend`, `backend-worker`, `recognition`.
 
-| Service | Port | Description |
+| Service | Bind | Description |
 |---------|------|-------------|
-| NGINX | 80, 443 | Reverse proxy |
-| Frontend | 6001 (internal) | Next.js |
-| Backend | 6002 (internal) | FastAPI |
-| Recognition | 6003 (internal) | Face service |
-| Prometheus | internal only | Metrics (no host port — avoids conflicts) |
-| Grafana | internal only | Dashboards |
+| Frontend | `127.0.0.1:6001` | Next.js — CloudPanel proxies `/` here |
+| Backend | host `:6002` | FastAPI — CloudPanel proxies `/api/` here |
+| Recognition | `127.0.0.1:6003` | Face service (internal) |
+| Backend worker | host network | Background jobs |
 
-## TLS with Let's Encrypt
+**Not started on CloudPanel:** Docker Redis, Nginx, Prometheus, Grafana (use CloudPanel / host).
 
-1. Place certificates in `docker/nginx/certs/fullchain.pem` and `privkey.pem`
-2. Update `docker/nginx/nginx.conf` server_name to your domain
-3. Reload NGINX: `docker compose exec nginx nginx -s reload`
+Helper: `./scripts/compose-prod.sh ps`  (same as `-f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod`).
+
+**Optional** (non-CloudPanel): `--profile docker-nginx` for container Nginx; `--profile monitoring` for Prometheus + Grafana.
+
+## TLS (CloudPanel)
+
+Use CloudPanel’s SSL (Let’s Encrypt) on your site vhost. Copy proxy rules from `docker/cloudpanel/vhost.conf.example`.
 
 ## Database
 
@@ -131,11 +133,11 @@ Retention: 90 days (configure in script). Weekly full volume snapshot recommende
 ./docker/scripts/restore-db.sh backups/attendance_YYYYMMDD_HHMMSS.sql
 ```
 
-## Monitoring
+## Monitoring (optional)
 
-- Prometheus: http://your-host:9090
-- Grafana: http://your-host:3001 (default admin/admin — change immediately)
-- Health: `GET /health` on backend and recognition services
+Not used on CloudPanel by default. To enable: `docker compose --profile monitoring up -d` (localhost `:9090`, `:3001` only).
+
+Health: `GET /health` on backend (`:6002`) and recognition (`:6003`).
 
 ## Public kiosk
 

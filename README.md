@@ -7,7 +7,7 @@ Self-hosted employee attendance platform with face recognition, shift management
 - **Frontend:** Next.js 15, TypeScript, Tailwind, ShadCN UI, TanStack Query
 - **Backend:** FastAPI, MySQL 8, Redis
 - **Recognition:** InsightFace (primary), DeepFace (fallback)
-- **Deploy:** Docker Compose, NGINX, Prometheus, Grafana
+- **Deploy:** Docker Compose (CloudPanel: host Nginx/Redis/MySQL)
 
 ## Quick start (development)
 
@@ -52,17 +52,16 @@ Default admin: `admin@company.com` / `Admin123!`
 
 See [docs/upgrade-v3-kiosk.md](docs/upgrade-v3-kiosk.md), [docs/upgrade.md](docs/upgrade.md), and [docs/v2-migration.md](docs/v2-migration.md).
 
-## Production
+## Production (CloudPanel)
 
-Uses **your existing MySQL** (not a Compose mysql service). Set `DATABASE_URL_DOCKER` in `.env` to reach the host DB (`host.docker.internal` on the same machine, or your server IP).
+Uses **host MySQL, Redis, and Nginx** — Docker runs only frontend, backend, worker, and recognition.
 
 ```bash
-docker compose --profile prod up -d
+./scripts/server-setup-env.sh --force --cloudpanel
+./scripts/compose-prod.sh up -d --build
 ```
 
-Optional bundled MySQL only: `docker compose --profile mysql-docker up -d mysql`
-
-See [docs/deploy.md](docs/deploy.md) for TLS, backups, and monitoring.
+See [docs/deploy.md](docs/deploy.md) for vhost config, backups, and optional monitoring.
 
 ## Project structure
 

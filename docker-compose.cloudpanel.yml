@@ -1,16 +1,23 @@
-# CloudPanel: use host MySQL, host Redis, and host Nginx (no redis/nginx containers).
+# CloudPanel: host MySQL, Redis, and Nginx — only run the 4 app containers.
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d
 #
-# Point CloudPanel vhost to 127.0.0.1:6001 (frontend) and /api → 127.0.0.1:6002 (backend).
-# See docker/cloudpanel/vhost.conf.example
+# CloudPanel vhost: docker/cloudpanel/vhost.conf.example
+#   /     → http://127.0.0.1:6001
+#   /api/ → http://127.0.0.1:6002
 
 services:
   redis:
-    profiles: [cloudpanel-skip-redis]
+    profiles: [cloudpanel-skip]
 
   nginx:
-    profiles: [cloudpanel-skip-nginx]
+    profiles: [cloudpanel-skip]
+
+  prometheus:
+    profiles: [cloudpanel-skip]
+
+  grafana:
+    profiles: [cloudpanel-skip]
 
   backend:
     network_mode: host
@@ -36,13 +43,3 @@ services:
     ports:
       - "127.0.0.1:6001:6001"
     depends_on: []
-
-  prometheus:
-    ports: []
-    expose:
-      - "9090"
-
-  grafana:
-    ports: []
-    expose:
-      - "3000"
