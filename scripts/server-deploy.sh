@@ -4,6 +4,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "=== Pulling latest code ==="
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Stashing local changes before pull..."
+  git stash push -u -m "server-deploy-$(date +%Y%m%d%H%M%S)"
+fi
 git pull origin main
 
 echo "=== Stopping old containers ==="

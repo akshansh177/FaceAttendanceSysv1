@@ -85,3 +85,14 @@ cd /path/to/FaceAttendanceSystem
 ```
 
 This pulls latest code, rebuilds images, runs migrations, and seeds.
+
+If `git pull` fails with "local changes would be overwritten", run:
+
+```bash
+git stash
+git pull origin main
+docker compose build --no-cache backend
+docker compose up -d backend
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed
+```
