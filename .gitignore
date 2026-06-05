@@ -27,9 +27,9 @@ backups/
 .vscode/
 .DS_Store
 
-# Models (large)
+# ML model weights only (apps/backend/app/models is SQLAlchemy ORM — must be tracked)
 .insightface/
-models/
+**/.insightface/
 
 # Logs
 *.log
