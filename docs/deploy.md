@@ -1,151 +1,87 @@
-# Production Deployment
+# Production Deployment (CloudPanel)
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Domain name with DNS pointing to your server
-- TLS certificates (Let's Encrypt recommended)
+- CloudPanel with MySQL 8, Redis, and Nginx already running
+- Domain pointing to server with SSL via CloudPanel
 
 ## Deploy
 
-**MySQL:** Use an existing MySQL 8 server (recommended). The Compose file does **not** start MySQL in `dev`/`prod` profiles.
-
 ```bash
-# CloudPanel (host MySQL + host Redis + host Nginx — no docker redis/nginx containers)
-chmod +x scripts/server-setup-env.sh scripts/server-deploy.sh
-./scripts/server-setup-env.sh --force --cloudpanel
-docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d --build
-docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend alembic upgrade head
-docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend python -m app.seed
+git clone <repo> && cd FaceAttendanceSystem
 
-# CloudPanel vhost: copy docker/cloudpanel/vhost.conf.example into your site Nginx config
-# NEXT_PUBLIC_API_URL=https://your-domain.com  CORS_ORIGINS=https://your-domain.com
-
-# Or one-shot: ./scripts/server-deploy.sh
+# Edit apps/backend/.env with your MySQL credentials
+# Then:
+chmod +x scripts/server-deploy.sh scripts/compose-prod.sh
+./scripts/server-deploy.sh
 ```
 
-**Non-CloudPanel** (MySQL accepts TCP from Docker bridge):
+Or step by step:
 
 ```bash
-./scripts/server-setup-env.sh --force
-docker compose --profile prod up -d --build
+docker compose down --remove-orphans
+docker image prune -f
+docker compose up -d --build
+
+# Wait ~10s for backend to start
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed
 ```
 
-Recognition Docker image uses a multi-stage build with `g++` for InsightFace. **DeepFace is not installed by default** (avoids a 600MB+ TensorFlow download). Kiosk and enrollment work via InsightFace. For portal gray-zone DeepFace verify, set recognition `dockerfile: Dockerfile.deepface` in `docker-compose.yml` and rebuild.
-
-If `docker compose build` still shows `Dockerfile: 369B`, `deepface` on line 8, or `g++ failed`, the server has **old files** (git pull blocked). From repo root:
-
-```bash
-git stash push -m local -u docker-compose.yml   # if pull was rejected
-git pull origin main
-chmod +x scripts/server-fix-docker-build.sh
-./scripts/server-fix-docker-build.sh
-```
-
-Or download fixed files only: `curl` lines in `scripts/server-fix-docker-build.sh`, then `docker compose build --no-cache recognition`.
-
-Optional Compose MySQL only: `docker compose --profile mysql-docker up -d mysql`
-
-**Prod profile containers (CloudPanel):** only 4 — `frontend`, `backend`, `backend-worker`, `recognition`.
+## Containers (4 total)
 
 | Service | Bind | Description |
 |---------|------|-------------|
-| Frontend | `127.0.0.1:6001` | Next.js — CloudPanel proxies `/` here |
-| Backend | host `:6002` | FastAPI — CloudPanel proxies `/api/` here |
-| Recognition | `127.0.0.1:6003` | Face service (internal) |
-| Backend worker | host network | Background jobs |
+| frontend | `127.0.0.1:6001` | Next.js — CloudPanel proxies `/` here |
+| backend | host network `:6002` | FastAPI API |
+| recognition | `127.0.0.1:6003` | Face detection (internal) |
+| backend-worker | host network | Background jobs (cron, exports) |
 
-**Not started on CloudPanel:** Docker Redis, Nginx, Prometheus, Grafana (use CloudPanel / host).
+**Not in Docker:** MySQL, Redis, Nginx — all provided by CloudPanel host.
 
-Helper: `./scripts/compose-prod.sh ps`  (same as `-f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod`).
+## CloudPanel Nginx Vhost
 
-**Optional** (non-CloudPanel): `--profile docker-nginx` for container Nginx; `--profile monitoring` for Prometheus + Grafana.
+Copy the proxy rules from `docker/cloudpanel/vhost.conf.example` into your site's Nginx config:
 
-## TLS (CloudPanel)
+- `/` → `http://127.0.0.1:6001` (frontend)
+- `/api/` → `http://127.0.0.1:6002` (backend)
 
-Use CloudPanel’s SSL (Let’s Encrypt) on your site vhost. Copy proxy rules from `docker/cloudpanel/vhost.conf.example`.
+## Environment
 
-## Database
-
-V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`** and **`apps/backend/.env`**:
+Edit `apps/backend/.env` only. Docker reads it directly via `env_file`.
 
 | Variable | Example |
 |----------|---------|
-| `MYSQL_DATABASE` | `attendanceacspl` |
-| `MYSQL_USER` | `acspluserattendance` |
-| `MYSQL_PASSWORD` | plain password (for Docker MySQL init) |
-| `DATABASE_URL` | `mysql+aiomysql://USER:URL_ENCODED_PASS@localhost:3306/DB` |
-| `DATABASE_URL_SYNC` | `mysql+pymysql://USER:URL_ENCODED_PASS@localhost:3306/DB` |
+| `DATABASE_URL` | `mysql+aiomysql://USER:PASS@localhost:3306/DB` |
+| `DATABASE_URL_SYNC` | `mysql+pymysql://USER:PASS@localhost:3306/DB` |
+| `REDIS_URL` | `redis://localhost:6379/0` |
+| `CORS_ORIGINS` | `https://your-domain.com` |
 
-**Local API** (`uvicorn` from `apps/backend`): edit **`apps/backend/.env`** with the same `DATABASE_URL` lines (host `localhost`).
+URL-encode special characters in passwords (`#` → `%23`, `@` → `%40`).
 
-**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`**.
+The compose file overrides `REDIS_URL` and `RECOGNITION_SERVICE_URL` to `127.0.0.1` for host-network containers.
 
-**CloudPanel (same server as MySQL):** use `docker-compose.cloudpanel.yml`:
+## Migrations & Seeding
 
-- **No Docker Redis** — uses CloudPanel/host Redis at `redis://127.0.0.1:6379/0`
-- **No Docker Nginx** — use CloudPanel’s Nginx; see `docker/cloudpanel/vhost.conf.example` (`/` → `127.0.0.1:6001`, `/api/` → `127.0.0.1:6002`)
-- **Backend host network** — MySQL at `localhost:3306` (no `host.docker.internal` timeout)
-
-Run `./scripts/server-setup-env.sh --force --cloudpanel`.
-
-**Other hosts:** use `host.docker.internal` in `*_DOCKER` URLs; MySQL must listen on `0.0.0.0` or the Docker bridge IP, not only `127.0.0.1`.
-
-If you see `Can't connect to MySQL server on 'host.docker.internal'` or timeout on `172.17.0.1:3306`, switch to the CloudPanel compose override above.
-
-If backend logs show `Could not parse SQLAlchemy URL from string ''`, run `./scripts/server-setup-env.sh` or add `DATABASE_URL_DOCKER` to root `.env`, then recreate backend.
-
-If Redis fails with `address already in use` on port 6379, the compose Redis service no longer binds host port 6379 (uses internal network only). Run `docker compose --profile prod up -d redis`.
-
-**Seed / migrations** (always inside Docker, not host `python3`):
+Always run inside Docker:
 
 ```bash
 docker compose exec backend alembic upgrade head
 docker compose exec backend python -m app.seed
 ```
 
-**No MySQL container:** `docker compose` `dev`/`prod` profiles only start redis, backend, recognition, etc.
-
-URL-encode special characters in passwords inside connection URLs (`#` → `%23`, `@` → `%40`).
-
-Connection strings:
-
-- Async API: `mysql+aiomysql://user:pass@mysql:3306/dbname`
-- Alembic: `mysql+pymysql://...` (uses `DATABASE_URL_SYNC` from env)
-
-For high load, add a MySQL read replica and route report queries to it via a separate `DATABASE_URL_READ` (application support as needed).
-
 ## Backups
 
-Daily database backup (mysqldump on host, not via mysql container):
-
 ```bash
-mysqldump -h localhost -u acspluserattendance -p attendanceacspl > backups/attendanceacspl_$(date +%Y%m%d).sql
+mysqldump -h localhost -u USER -p DBNAME > backups/db_$(date +%Y%m%d).sql
 ```
 
-Or use `./docker/scripts/backup-db.sh` only if you run the optional `mysql-docker` profile.
-
-Retention: 90 days (configure in script). Weekly full volume snapshot recommended.
-
-## Restore
+## Updating
 
 ```bash
-./docker/scripts/restore-db.sh backups/attendance_YYYYMMDD_HHMMSS.sql
+cd /path/to/FaceAttendanceSystem
+./scripts/server-deploy.sh
 ```
 
-## Monitoring (optional)
-
-Not used on CloudPanel by default. To enable: `docker compose --profile monitoring up -d` (localhost `:9090`, `:3001` only).
-
-Health: `GET /health` on backend (`:6002`) and recognition (`:6003`).
-
-## Public kiosk
-
-- Expose `/kiosk` on the frontend (no auth).
-- Provision each device in **Kiosks** admin; store API key on the device only.
-- Optional: restrict NGINX `location /api/kiosk` to office VLAN.
-- Recognition service must expose `POST /liveness-check` (port 6003).
-
-## Rate limits
-
-Login: 10/min per identifier. Kiosk recognize: 60/min per IP+device. Tune in backend `rate_limit.py`.
+This pulls latest code, rebuilds images, runs migrations, and seeds.

@@ -1,24 +1,31 @@
 #!/bin/bash
-# Full prod deploy on CloudPanel / same-host MySQL (run from repo root).
+# Full deploy on CloudPanel (run from repo root).
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO_ROOT"
-
-chmod +x scripts/server-setup-env.sh scripts/server-fix-docker-build.sh 2>/dev/null || true
-
+echo "=== Pulling latest code ==="
 git pull origin main
 
-./scripts/server-setup-env.sh --force --cloudpanel
+echo "=== Stopping old containers ==="
+docker compose down --remove-orphans
 
-chmod +x scripts/compose-prod.sh
-./scripts/compose-prod.sh up -d --build --force-recreate
+echo "=== Pruning unused Docker images ==="
+docker image prune -f
 
-echo "Waiting for backend..."
-sleep 8
-./scripts/compose-prod.sh exec backend alembic upgrade head
-./scripts/compose-prod.sh exec backend python -m app.seed
+echo "=== Building and starting ==="
+docker compose up -d --build
 
-echo "Done. Running containers:"
-./scripts/compose-prod.sh ps
-./scripts/compose-prod.sh logs backend --tail 15
+echo "=== Waiting for backend to start ==="
+sleep 10
+
+echo "=== Running migrations ==="
+docker compose exec backend alembic upgrade head
+
+echo "=== Seeding database ==="
+docker compose exec backend python -m app.seed
+
+echo ""
+echo "=== Done. Running containers: ==="
+docker compose ps
+echo ""
+docker compose logs backend --tail 10

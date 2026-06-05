@@ -1,147 +1,45 @@
-# Use your own MySQL server (no mysql container in dev/prod).
-#
-# prod profile (core app only): redis, backend, backend-worker, frontend, recognition
-# CloudPanel: add -f docker-compose.cloudpanel.yml (skips redis/nginx; uses host services)
-# Optional: --profile docker-nginx  |  --profile monitoring  |  --profile mysql-docker
+# CloudPanel deploy: only 4 app containers (host MySQL, Redis, Nginx).
+# Usage: ./scripts/compose-prod.sh up -d --build
 
 services:
-  mysql:
-    image: mysql:8.0
+  backend:
+    build: ./apps/backend
+    network_mode: host
+    env_file: ./apps/backend/.env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-attendanceacspl}
-      MYSQL_USER: ${MYSQL_USER:-acspluserattendance}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
-    ports:
-      - "3306:3306"
+      REDIS_URL: redis://127.0.0.1:6379/0
+      RECOGNITION_SERVICE_URL: http://127.0.0.1:6003
     volumes:
-      - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    profiles: [mysql-docker]
-
-  redis:
-    image: redis:7-alpine
-    # No host port bind — avoids conflict with host Redis on :6379 (CloudPanel, etc.)
-    expose:
-      - "6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    profiles: [dev, prod]
+      - uploads_data:/app/uploads
+    restart: unless-stopped
 
   backend-worker:
-    build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
-    env_file:
-      - path: .env
-        required: false
-      - path: ./apps/backend/.env
-        required: false
+    build: ./apps/backend
+    network_mode: host
+    env_file: ./apps/backend/.env
     environment:
-      # DB URLs come from env_file only (avoid blank compose override wiping apps/backend/.env)
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://127.0.0.1:6379/0
     command: ["python", "-m", "app.worker"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      redis:
-        condition: service_healthy
     volumes:
-      - ./apps/backend:/app
       - uploads_data:/app/uploads
-    profiles: [prod]
-
-  backend:
-    build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
-    env_file:
-      - path: .env
-        required: false
-      - path: ./apps/backend/.env
-        required: false
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      RECOGNITION_SERVICE_URL: http://recognition:6003
-    ports:
-      - "6002:6002"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./apps/backend:/app
-      - uploads_data:/app/uploads
-    profiles: [dev, prod]
+    restart: unless-stopped
 
   recognition:
-    build:
-      context: ./apps/recognition-service
-      dockerfile: Dockerfile
-    env_file: .env
+    build: ./apps/recognition-service
     ports:
-      - "6003:6003"
-    volumes:
-      - ./apps/recognition-service:/app
-    profiles: [dev, prod]
+      - "127.0.0.1:6003:6003"
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./apps/frontend
-      dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:6002}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://attendance.akshanshconsultancy.com}
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:6002}
       PORT: "6001"
     ports:
-      - "6001:6001"
-    depends_on:
-      - backend
-    profiles: [prod]
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/certs:/etc/nginx/certs:ro
-    depends_on:
-      - frontend
-      - backend
-    profiles: [docker-nginx]
-
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "127.0.0.1:9090:9090"
-    profiles: [monitoring]
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "127.0.0.1:3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-    depends_on:
-      - prometheus
-    profiles: [monitoring]
+      - "127.0.0.1:6001:6001"
+    restart: unless-stopped
 
 volumes:
-  mysql_data:
   uploads_data:

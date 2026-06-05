@@ -1,48 +1,8 @@
 from __future__ import annotations
 
-import os
 from functools import lru_cache
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
-from urllib.parse import quote_plus
 
-from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def _build_mysql_url(*, async_driver: bool) -> str | None:
-    host = os.getenv("MYSQL_HOST", "").strip()
-    user = os.getenv("MYSQL_USER", "").strip()
-    database = os.getenv("MYSQL_DATABASE", "").strip()
-    password = os.getenv("MYSQL_PASSWORD", "")
-    if not (host and user and database):
-        return None
-    driver = "mysql+aiomysql" if async_driver else "mysql+pymysql"
-    return f"{driver}://{user}:{quote_plus(password)}@{host}:3306/{database}"
-
-
-def _rewrite_localhost_for_docker(url: str) -> str:
-    if not url or not os.path.exists("/.dockerenv"):
-        return url
-    if os.getenv("DOCKER_USE_HOST_NETWORK", "").lower() in ("1", "true", "yes"):
-        return url
-    return url.replace("@localhost:", "@host.docker.internal:")
-
-
-def _resolve_database_url(current: str, *, async_driver: bool) -> str:
-    current = (current or "").strip()
-    if current:
-        return current
-    docker_key = "DATABASE_URL_DOCKER" if async_driver else "DATABASE_URL_SYNC_DOCKER"
-    local_key = "DATABASE_URL" if async_driver else "DATABASE_URL_SYNC"
-    for key in (docker_key, local_key):
-        value = os.getenv(key, "").strip()
-        if value:
-            return value
-    built = _build_mysql_url(async_driver=async_driver)
-    return built or ""
 
 
 class Settings(BaseSettings):
@@ -71,7 +31,7 @@ class Settings(BaseSettings):
     min_enrollment_pairwise_similarity: float = 0.40
 
     recognition_service_url: str = "http://localhost:6003"
-    deepface_enabled: bool = True
+    deepface_enabled: bool = False
 
     cors_origins: str = "http://localhost:6001"
     upload_dir: str = "./uploads"
@@ -87,39 +47,6 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_tls: bool = True
     notify_from: str = "attendance@company.com"
-
-    @model_validator(mode="after")
-    def resolve_database_urls(self) -> Self:
-        object.__setattr__(
-            self,
-            "database_url",
-            _resolve_database_url(self.database_url, async_driver=True),
-        )
-        object.__setattr__(
-            self,
-            "database_url_sync",
-            _resolve_database_url(self.database_url_sync, async_driver=False),
-        )
-        if not self.database_url:
-            raise ValueError(
-                "DATABASE_URL is empty. For Docker, set DATABASE_URL_DOCKER and "
-                "DATABASE_URL_SYNC_DOCKER in the repo root .env (host: host.docker.internal "
-                "or your MySQL IP; URL-encode # in passwords as %23). For local uvicorn, "
-                "set DATABASE_URL in apps/backend/.env."
-            )
-        if not self.database_url_sync:
-            object.__setattr__(self, "database_url_sync", self.database_url.replace(
-                "mysql+aiomysql", "mysql+pymysql", 1
-            ))
-        object.__setattr__(
-            self, "database_url", _rewrite_localhost_for_docker(self.database_url)
-        )
-        object.__setattr__(
-            self,
-            "database_url_sync",
-            _rewrite_localhost_for_docker(self.database_url_sync),
-        )
-        return self
 
     @property
     def cors_origin_list(self) -> list[str]:
