@@ -11,8 +11,9 @@
 **MySQL:** Use an existing MySQL 8 server (recommended). The Compose file does **not** start MySQL in `dev`/`prod` profiles.
 
 ```bash
-cp .env.example .env
-# Edit: JWT_*, EMBEDDING_ENCRYPTION_KEY, DATABASE_URL_DOCKER (host = host.docker.internal or server IP)
+# One-time: create root .env from apps/backend/.env (Docker DB host = host.docker.internal)
+chmod +x scripts/server-setup-env.sh && ./scripts/server-setup-env.sh
+# Edit .env: JWT_*, EMBEDDING_ENCRYPTION_KEY, NEXT_PUBLIC_API_URL, CORS_ORIGINS
 
 docker compose --profile prod up -d --build
 docker compose exec backend alembic upgrade head
@@ -67,7 +68,16 @@ V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`*
 
 **Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`** with host `host.docker.internal` (same machine) or your MySQL server IP. Backend services include `extra_hosts: host.docker.internal:host-gateway` for Linux.
 
-If backend logs show `Could not parse SQLAlchemy URL from string ''`, root `.env` is missing `DATABASE_URL_DOCKER` (Compose was overriding `DATABASE_URL` with an empty value). Add both `*_DOCKER` lines, then `docker compose --profile prod up -d --force-recreate backend backend-worker`.
+If backend logs show `Could not parse SQLAlchemy URL from string ''`, run `./scripts/server-setup-env.sh` or add `DATABASE_URL_DOCKER` to root `.env`, then recreate backend.
+
+If Redis fails with `address already in use` on port 6379, the compose Redis service no longer binds host port 6379 (uses internal network only). Run `docker compose --profile prod up -d redis`.
+
+**Seed / migrations** (always inside Docker, not host `python3`):
+
+```bash
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.seed
+```
 
 **No MySQL container:** `docker compose` `dev`/`prod` profiles only start redis, backend, recognition, etc.
 

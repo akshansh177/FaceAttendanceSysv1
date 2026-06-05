@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Self
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 from urllib.parse import quote_plus
 
 from pydantic import model_validator
@@ -18,6 +21,12 @@ def _build_mysql_url(*, async_driver: bool) -> str | None:
         return None
     driver = "mysql+aiomysql" if async_driver else "mysql+pymysql"
     return f"{driver}://{user}:{quote_plus(password)}@{host}:3306/{database}"
+
+
+def _rewrite_localhost_for_docker(url: str) -> str:
+    if not url or not os.path.exists("/.dockerenv"):
+        return url
+    return url.replace("@localhost:", "@host.docker.internal:")
 
 
 def _resolve_database_url(current: str, *, async_driver: bool) -> str:
@@ -100,6 +109,14 @@ class Settings(BaseSettings):
             object.__setattr__(self, "database_url_sync", self.database_url.replace(
                 "mysql+aiomysql", "mysql+pymysql", 1
             ))
+        object.__setattr__(
+            self, "database_url", _rewrite_localhost_for_docker(self.database_url)
+        )
+        object.__setattr__(
+            self,
+            "database_url_sync",
+            _rewrite_localhost_for_docker(self.database_url_sync),
+        )
         return self
 
     @property
