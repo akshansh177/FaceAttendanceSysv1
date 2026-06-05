@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 from uuid import UUID
 
@@ -22,6 +23,7 @@ from app.services.face_service import (
 )
 from app.services.recognition_client import RecognitionServiceError, recognition_client
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/faces", tags=["faces"])
 
 
@@ -68,10 +70,18 @@ async def enroll_faces(
         raise HTTPException(400, quality_err)
 
     model_name = models[0] if models else "insightface"
-    count = await store_embeddings(db, employee_id, embeddings, model=model_name)
-    await db.commit()
-    await rebuild_embedding_index(db)
-    await log_audit(db, user.id, "face.enrolled", "face_embeddings", payload={"employee_id": str(employee_id), "count": count})
+    try:
+        count = await store_embeddings(db, employee_id, embeddings, model=model_name)
+        await db.commit()
+        try:
+            await rebuild_embedding_index(db)
+        except Exception as e:
+            logger.warning("FAISS rebuild after enroll failed (embeddings saved): %s", e)
+        await log_audit(db, user.id, "face.enrolled", "face_embeddings", payload={"employee_id": str(employee_id), "count": count})
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Face enroll storage failed for employee %s", employee_id)
+        raise HTTPException(500, f"Failed to store embeddings: {e}") from e
     return FaceEnrollResponse(
         employee_id=employee_id,
         embeddings_stored=count,

@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 export const metadata: Metadata = {
   title: "Face Attendance",
   description: "Face Attendance Management System",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

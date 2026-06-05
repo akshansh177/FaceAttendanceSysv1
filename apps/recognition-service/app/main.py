@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -50,8 +51,11 @@ async def health():
 @app.post("/detect-embed")
 async def detect_embed(file: UploadFile = File(...)):
     data = await file.read()
+    if not data:
+        raise HTTPException(400, "Empty image upload")
     try:
-        result = detect_and_embed_insightface(data)
+        # CPU-heavy; run off the event loop so health checks stay responsive
+        result = await asyncio.to_thread(detect_and_embed_insightface, data)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except Exception as e:

@@ -46,14 +46,15 @@ class RecognitionClient:
                         f"Check: docker compose ps recognition && docker compose logs recognition --tail 20"
                     )
                 return resp.json()
-        except httpx.ConnectError as e:
-            raise RecognitionServiceError(
-                f"Recognition service not reachable at {self.base_url}. "
-                "Run: docker compose up -d recognition"
-            ) from e
         except httpx.TimeoutException as e:
             raise RecognitionServiceError(
                 "Recognition service timed out (model may still be loading). Retry in 30s."
+            ) from e
+        except httpx.RequestError as e:
+            raise RecognitionServiceError(
+                f"Recognition service crashed or disconnected at {self.base_url} "
+                f"({e.__class__.__name__}). "
+                "Run: docker compose logs recognition --tail 30 && docker compose up -d recognition"
             ) from e
 
     async def deepface_verify(
