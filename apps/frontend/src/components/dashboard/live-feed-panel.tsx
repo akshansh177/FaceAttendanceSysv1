@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, statusBadgeVariant } from "@/components/ui/badge";
 import { usePageVisible } from "@/hooks/use-page-visible";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:6002";
+import { getApiBaseUrl } from "@/lib/api-base";
+
+const API_URL = getApiBaseUrl() || "";
 
 export function LiveFeedPanel() {
   const pageVisible = usePageVisible();

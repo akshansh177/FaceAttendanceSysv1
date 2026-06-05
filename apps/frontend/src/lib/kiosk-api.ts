@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:6002";
+import { getApiBaseUrl } from "./api-base";
+
+const API_URL = getApiBaseUrl() || (typeof window !== "undefined" ? "" : "http://localhost:6002");
 
 export function kioskMediaUrl(path: string | null | undefined): string | null {
   if (!path) return null;

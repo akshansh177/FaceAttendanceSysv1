@@ -62,6 +62,14 @@ URL-encode special characters in passwords (`#` → `%23`, `@` → `%40`). This 
 
 The compose file overrides `REDIS_URL` and `RECOGNITION_SERVICE_URL` to `127.0.0.1` for host-network containers.
 
+**Frontend API URL:** In repo root `.env`, set `NEXT_PUBLIC_API_URL=` (empty). Do **not** use comma-separated values or `localhost` in production — rebuild frontend after changing:
+
+```bash
+# Fix root .env: NEXT_PUBLIC_API_URL=   (empty line, no localhost)
+docker compose build --no-cache frontend
+docker compose up -d frontend
+```
+
 ## Migrations & Seeding
 
 Always run inside Docker:
