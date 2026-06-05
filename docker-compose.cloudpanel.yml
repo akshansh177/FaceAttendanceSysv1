@@ -1,0 +1,47 @@
+# CloudPanel / same-host MySQL: use host network so backend reaches localhost:3306.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d
+#
+# Requires host MySQL on 127.0.0.1:3306 and host Redis on 127.0.0.1:6379 (common on CloudPanel).
+
+services:
+  redis:
+    profiles: [cloudpanel-skip-redis]
+
+  backend:
+    network_mode: host
+    depends_on: []
+    ports: []
+    environment:
+      DOCKER_USE_HOST_NETWORK: "true"
+      REDIS_URL: redis://127.0.0.1:6379/0
+      RECOGNITION_SERVICE_URL: http://127.0.0.1:6003
+
+  backend-worker:
+    network_mode: host
+    depends_on: []
+    environment:
+      DOCKER_USE_HOST_NETWORK: "true"
+      REDIS_URL: redis://127.0.0.1:6379/0
+
+  recognition:
+    ports:
+      - "127.0.0.1:6003:6003"
+
+  frontend:
+    ports:
+      - "127.0.0.1:6001:6001"
+
+  nginx:
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+
+  prometheus:
+    ports: []
+    expose:
+      - "9090"
+
+  grafana:
+    ports: []
+    expose:
+      - "3000"

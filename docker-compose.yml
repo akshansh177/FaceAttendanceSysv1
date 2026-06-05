@@ -123,14 +123,14 @@ services:
     image: prom/prometheus:latest
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9090:9090"
+    expose:
+      - "9090"
     profiles: [prod]
 
   grafana:
     image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
+    expose:
+      - "3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:

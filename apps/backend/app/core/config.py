@@ -26,6 +26,8 @@ def _build_mysql_url(*, async_driver: bool) -> str | None:
 def _rewrite_localhost_for_docker(url: str) -> str:
     if not url or not os.path.exists("/.dockerenv"):
         return url
+    if os.getenv("DOCKER_USE_HOST_NETWORK", "").lower() in ("1", "true", "yes"):
+        return url
     return url.replace("@localhost:", "@host.docker.internal:")
 
 

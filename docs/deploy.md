@@ -11,13 +11,21 @@
 **MySQL:** Use an existing MySQL 8 server (recommended). The Compose file does **not** start MySQL in `dev`/`prod` profiles.
 
 ```bash
-# One-time: create root .env from apps/backend/.env (Docker DB host = host.docker.internal)
-chmod +x scripts/server-setup-env.sh && ./scripts/server-setup-env.sh
-# Edit .env: JWT_*, EMBEDDING_ENCRYPTION_KEY, NEXT_PUBLIC_API_URL, CORS_ORIGINS
+# CloudPanel / MySQL on same host (recommended — avoids host.docker.internal timeout)
+chmod +x scripts/server-setup-env.sh scripts/server-deploy.sh
+./scripts/server-setup-env.sh --force --cloudpanel
+docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml --profile prod up -d --build
+docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.cloudpanel.yml exec backend python -m app.seed
 
+# Or one-shot: ./scripts/server-deploy.sh
+```
+
+**Non-CloudPanel** (MySQL accepts TCP from Docker bridge):
+
+```bash
+./scripts/server-setup-env.sh --force
 docker compose --profile prod up -d --build
-docker compose exec backend alembic upgrade head
-docker compose exec backend python -m app.seed
 ```
 
 Recognition Docker image uses a multi-stage build with `g++` for InsightFace. **DeepFace is not installed by default** (avoids a 600MB+ TensorFlow download). Kiosk and enrollment work via InsightFace. For portal gray-zone DeepFace verify, set recognition `dockerfile: Dockerfile.deepface` in `docker-compose.yml` and rebuild.
@@ -43,8 +51,8 @@ Services:
 | Frontend | 6001 (internal) | Next.js |
 | Backend | 6002 (internal) | FastAPI |
 | Recognition | 6003 (internal) | Face service |
-| Prometheus | 9090 | Metrics |
-| Grafana | 3001 | Dashboards |
+| Prometheus | internal only | Metrics (no host port — avoids conflicts) |
+| Grafana | internal only | Dashboards |
 
 ## TLS with Let's Encrypt
 
@@ -66,7 +74,13 @@ V2 uses **MySQL 8** on your server (external). Set credentials in **root `.env`*
 
 **Local API** (`uvicorn` from `apps/backend`): edit **`apps/backend/.env`** with the same `DATABASE_URL` lines (host `localhost`).
 
-**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`** with host `host.docker.internal` (same machine) or your MySQL server IP. Backend services include `extra_hosts: host.docker.internal:host-gateway` for Linux.
+**Docker API** (containers): set `DATABASE_URL_DOCKER` / `DATABASE_URL_SYNC_DOCKER` in **repo root `.env`**.
+
+**CloudPanel (same server as MySQL):** use `docker-compose.cloudpanel.yml` so backend uses **host network** and `localhost:3306`. Run `./scripts/server-setup-env.sh --force --cloudpanel`. Requires host Redis on `127.0.0.1:6379` (CloudPanel default).
+
+**Other hosts:** use `host.docker.internal` in `*_DOCKER` URLs; MySQL must listen on `0.0.0.0` or the Docker bridge IP, not only `127.0.0.1`.
+
+If you see `Can't connect to MySQL server on 'host.docker.internal'` or timeout on `172.17.0.1:3306`, switch to the CloudPanel compose override above.
 
 If backend logs show `Could not parse SQLAlchemy URL from string ''`, run `./scripts/server-setup-env.sh` or add `DATABASE_URL_DOCKER` to root `.env`, then recreate backend.
 
