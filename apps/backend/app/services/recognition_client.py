@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import base64
-
 import httpx
 import numpy as np
 
 from app.core.config import get_settings
+
+
+class RecognitionServiceError(Exception):
+    """Recognition service unreachable or returned an error."""
 
 
 class RecognitionClient:
@@ -31,12 +33,28 @@ class RecognitionClient:
             }
 
     async def detect_and_embed(self, image_bytes: bytes) -> dict | None:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            files = {"file": ("image.jpg", image_bytes, "image/jpeg")}
-            resp = await client.post(f"{self.base_url}/detect-embed", files=files)
-            if resp.status_code != 200:
-                return None
-            return resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                files = {"file": ("image.jpg", image_bytes, "image/jpeg")}
+                resp = await client.post(f"{self.base_url}/detect-embed", files=files)
+                if resp.status_code == 400:
+                    return None
+                if resp.status_code != 200:
+                    detail = resp.text[:200] if resp.text else f"HTTP {resp.status_code}"
+                    raise RecognitionServiceError(
+                        f"Recognition service error: {detail}. "
+                        f"Check: docker compose ps recognition && docker compose logs recognition --tail 20"
+                    )
+                return resp.json()
+        except httpx.ConnectError as e:
+            raise RecognitionServiceError(
+                f"Recognition service not reachable at {self.base_url}. "
+                "Run: docker compose up -d recognition"
+            ) from e
+        except httpx.TimeoutException as e:
+            raise RecognitionServiceError(
+                "Recognition service timed out (model may still be loading). Retry in 30s."
+            ) from e
 
     async def deepface_verify(
         self, probe_bytes: bytes, reference_bytes: bytes

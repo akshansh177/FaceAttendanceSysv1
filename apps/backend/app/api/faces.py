@@ -20,7 +20,7 @@ from app.services.face_service import (
     store_embeddings,
     validate_enrollment_embeddings,
 )
-from app.services.recognition_client import recognition_client
+from app.services.recognition_client import RecognitionServiceError, recognition_client
 
 router = APIRouter(prefix="/api/faces", tags=["faces"])
 
@@ -46,7 +46,10 @@ async def enroll_faces(
     models: list[str] = []
     for f in files:
         data = await f.read()
-        resp = await recognition_client.detect_and_embed(data)
+        try:
+            resp = await recognition_client.detect_and_embed(data)
+        except RecognitionServiceError as e:
+            raise HTTPException(503, str(e)) from e
         if not resp or not resp.get("embedding"):
             raise HTTPException(400, f"No face detected in {f.filename}")
         if resp.get("model") == "fallback":

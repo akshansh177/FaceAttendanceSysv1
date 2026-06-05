@@ -67,7 +67,12 @@ async def rebuild_embedding_index(db: AsyncSession, *, broadcast: bool = True) -
     if broadcast:
         from app.services.index_sync import publish_index_reload
 
-        await publish_index_reload()
+        try:
+            await publish_index_reload()
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning("Index reload pub/sub skipped: %s", e)
     return len(flat)
 
 

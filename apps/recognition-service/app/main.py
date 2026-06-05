@@ -50,7 +50,13 @@ async def health():
 @app.post("/detect-embed")
 async def detect_embed(file: UploadFile = File(...)):
     data = await file.read()
-    result = detect_and_embed_insightface(data)
+    try:
+        result = detect_and_embed_insightface(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        logging.exception("detect-embed failed")
+        raise HTTPException(500, f"Face detection failed: {e}") from e
     if result is None:
         raise HTTPException(400, "No face detected")
     if result.get("error") == "multiple_faces":

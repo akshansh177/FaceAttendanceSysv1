@@ -94,6 +94,26 @@ cd /path/to/FaceAttendanceSystem
 
 This pulls latest code, rebuilds images, runs migrations, and seeds.
 
+## Face enrollment 500 / 503
+
+Face enrollment calls the **recognition** container on `127.0.0.1:6003`. Check:
+
+```bash
+docker compose ps
+curl -s http://127.0.0.1:6003/health
+docker compose logs recognition --tail 50
+docker compose logs backend --tail 50
+```
+
+If recognition is down or still loading models:
+
+```bash
+docker compose up -d recognition
+docker compose restart backend
+```
+
+First startup may take 1–2 minutes while InsightFace downloads `buffalo_l` weights.
+
 If `git pull` fails or Alembic errors on `%23` in the password, run:
 
 ```bash
