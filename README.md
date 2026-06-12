@@ -7,45 +7,50 @@ Self-hosted employee attendance platform with face recognition, shift management
 - **Frontend:** Next.js 15, TypeScript, Tailwind, ShadCN UI, TanStack Query
 - **Backend:** FastAPI, MySQL 8, Redis
 - **Recognition:** InsightFace (primary)
-- **Deploy:** Docker Compose on CloudPanel (host Nginx/Redis/MySQL)
+- **Deploy:** Docker Compose on aaPanel (host Nginx/Redis/MySQL)
 
 ## Quick start (development)
 
 ```bash
-cp .env.example .env
-# Edit DATABASE_URL in apps/backend/.env for your MySQL server
+# One-time setup (venvs, deps, Redis)
+chmod +x scripts/dev-*.sh
+./scripts/dev-setup.sh
 
-# Backend
-cd apps/backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-python -m app.seed
-uvicorn app.main:app --reload --port 6002
-
-# Recognition
-cd apps/recognition-service
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 6003
-
-# Frontend (http://localhost:6001)
-cd apps/frontend
-npm install && npm run dev
+# Edit apps/backend/.env — set DATABASE_URL for your MySQL
+cd apps/backend && source .venv/bin/activate
+alembic upgrade head && python -m app.seed
 ```
+
+Use **3 terminals** (do not use conda base `uvicorn`):
+
+```bash
+./scripts/dev-backend.sh      # :6002 — uses apps/backend/.venv
+./scripts/dev-recognition.sh  # :6003 — uses apps/recognition-service/.venv
+./scripts/dev-frontend.sh     # :6001
+```
+
+Optional Redis for background jobs: `docker compose -f docker-compose.dev.yml up -d`
+
+| Service | Port | Directory |
+|---------|------|-----------|
+| Frontend | 6001 | `apps/frontend` |
+| Backend | 6002 | `apps/backend` |
+| Recognition | 6003 | `apps/recognition-service` |
 
 Default admin: `admin@company.com` / `Admin123!`
 
-## Production (CloudPanel)
+## Production (aaPanel)
 
-Only 4 Docker containers — host provides MySQL, Redis, Nginx.
+Only 4 Docker containers — aaPanel provides MySQL, Redis, and Nginx.
 
 ```bash
+cd /www/wwwroot/FaceAttendanceSysv1
 # Edit apps/backend/.env with production DB credentials
-chmod +x scripts/server-deploy.sh scripts/compose-prod.sh
+chmod +x scripts/server-deploy.sh
 ./scripts/server-deploy.sh
 ```
 
-See [docs/deploy.md](docs/deploy.md) for vhost config, backups, and details.
+See [docs/deploy.md](docs/deploy.md) for aaPanel Nginx reverse proxy, SSL, and troubleshooting.
 
 ## Project structure
 
@@ -53,6 +58,6 @@ See [docs/deploy.md](docs/deploy.md) for vhost config, backups, and details.
 apps/frontend            Next.js UI
 apps/backend             FastAPI API + attendance engine
 apps/recognition-service Face detection & embeddings
-docker/                  CloudPanel vhost example
+docker/aapanel           aaPanel Nginx vhost example
 docs/                    Deployment guides
 ```

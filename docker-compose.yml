@@ -1,4 +1,4 @@
-# CloudPanel deploy: only 4 app containers (host MySQL, Redis, Nginx).
+# aaPanel deploy: only 4 app containers (host MySQL, Redis, Nginx).
 # Usage: ./scripts/compose-prod.sh up -d --build
 
 services:
@@ -37,7 +37,7 @@ services:
     build:
       context: ./apps/frontend
       args:
-        # Empty = same-origin /api via CloudPanel Nginx (recommended)
+        # Empty = same-origin /api via aaPanel Nginx (recommended)
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     environment:
       PORT: "6001"

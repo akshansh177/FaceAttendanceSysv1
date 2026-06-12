@@ -1,5 +1,5 @@
 #!/bin/bash
-# Full deploy on CloudPanel (run from repo root).
+# Full deploy on aaPanel (run from repo root).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

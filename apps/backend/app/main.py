@@ -91,13 +91,28 @@ async def summary_interval_jobs():
             logger.error("Interval summary failed: %s", e)
 
 
+_redis_idle_logged = False
+
+
 async def export_worker_loop():
+    global _redis_idle_logged
     while True:
         try:
             if await acquire_leader_lock():
                 await refresh_leader_lock()
                 await process_export_queue_once()
+                _redis_idle_logged = False
         except Exception as e:
+            err = str(e)
+            if "6379" in err or "Connection refused" in err or "Connect call failed" in err:
+                if not _redis_idle_logged:
+                    logger.warning(
+                        "Redis unavailable — background export worker idle. "
+                        "Local dev: docker compose -f docker-compose.dev.yml up -d"
+                    )
+                    _redis_idle_logged = True
+                await asyncio.sleep(30)
+                continue
             logger.error("Export worker error: %s", e)
         await asyncio.sleep(2)
 

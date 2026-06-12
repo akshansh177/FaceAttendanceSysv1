@@ -1,0 +1,47 @@
+# aaPanel reverse proxy — paste into your site's Nginx config.
+# Replace attendance.akshansh.site with your domain.
+#
+# aaPanel steps:
+#   1. Website → your site → Settings → Configuration (or "Conf")
+#   2. Paste the location blocks below into the server { } block
+#   3. SSL: Website → your site → SSL → Let's Encrypt
+#   4. Reload Nginx from aaPanel (or: nginx -t && nginx -s reload)
+#
+# Docker runs on localhost only — aaPanel Nginx proxies public traffic.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name attendance.akshansh.site;
+
+    client_max_body_size 50M;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:6002;
+        proxy_http_version 1.1;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /metrics {
+        proxy_pass http://127.0.0.1:6002;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:6001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# Mirror the same location blocks in the :443 server { } block after enabling SSL in aaPanel.
